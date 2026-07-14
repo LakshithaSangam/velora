@@ -1,0 +1,21 @@
+import { auth } from "@/lib/auth/auth";
+
+export default async function SettingsPage() {
+  const session = await auth();
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-semibold">Settings</h1>
+      <div className="max-w-md space-y-2 text-sm">
+        <div>
+          <span className="text-gray-500">Name: </span>
+          {session?.user.name ?? "—"}
+        </div>
+        <div>
+          <span className="text-gray-500">Email: </span>
+          {session?.user.email}
+        </div>
+      </div>
+    </div>
+  );
+}

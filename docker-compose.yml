@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: studynotes
+      POSTGRES_PASSWORD: studynotes
+      POSTGRES_DB: studynotes
+    ports:
+      - "5432:5432"
+    volumes:
+      - studynotes_pgdata:/var/lib/postgresql/data
+
+volumes:
+  studynotes_pgdata:

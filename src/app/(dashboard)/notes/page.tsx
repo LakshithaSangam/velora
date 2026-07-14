@@ -1,0 +1,45 @@
+import Link from "next/link";
+import { auth } from "@/lib/auth/auth";
+import { prisma } from "@/lib/db/prisma";
+
+export default async function NotesListPage() {
+  const session = await auth();
+  const notes = await prisma.notesDocument.findMany({
+    where: { userId: session!.user.id },
+    orderBy: { createdAt: "desc" },
+    include: { source: true },
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Notes</h1>
+        <Link
+          href="/notes/new"
+          className="rounded-md bg-black px-4 py-2 text-sm text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+        >
+          + New notes
+        </Link>
+      </div>
+
+      {notes.length === 0 ? (
+        <p className="text-gray-500">
+          No notes yet. Generate your first set from a video, PDF, or article.
+        </p>
+      ) : (
+        <ul className="divide-y divide-gray-200 dark:divide-gray-800">
+          {notes.map((n) => (
+            <li key={n.id} className="py-3">
+              <Link href={`/notes/${n.id}`} className="font-medium hover:underline">
+                {n.title}
+              </Link>
+              <div className="text-sm text-gray-500">
+                {n.source.type} · {n.status}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
