@@ -3,6 +3,8 @@ import type { IngestResult, SourceAdapterInput } from "./types";
 import { pdfAdapter } from "./pdf";
 import { webArticleAdapter } from "./web-article";
 import { pastedTranscriptAdapter } from "./pasted-transcript";
+import { youtubeAdapter } from "./youtube";
+import { genericVideoAdapter } from "./generic-video";
 
 export async function ingestSource(
   type: SourceType,
@@ -16,8 +18,9 @@ export async function ingestSource(
     case "PASTED_TRANSCRIPT":
       return pastedTranscriptAdapter.ingest(input);
     case "YOUTUBE":
+      return youtubeAdapter.ingest(input);
     case "GENERIC_VIDEO":
-      throw new Error(`${type} ingestion is not available yet.`);
+      return genericVideoAdapter.ingest(input);
     case "MEETING_RECORDING":
       throw new Error("Meeting recording ingestion is not implemented.");
     default: {
