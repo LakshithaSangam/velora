@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StudyNotes AI
 
-## Getting Started
+Turn video lectures, PDFs, and articles into structured, section-wise study notes with an AI agent — then generate a practice test (MCQ, short answer, or mixed) from those notes, take it in-app with a timer, and get graded automatically.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Notes generation** — paste a YouTube URL, a direct video-caption (.vtt/.srt) link, upload a PDF, paste a web article URL, or paste a transcript directly. The app previews the extracted content and asks you to confirm before sending anything to Claude.
+- **Structured output** — notes come back as headed sections with bullet points and highlighted keywords, renderable and downloadable as Markdown.
+- **Test generation** — pick a notes document (or generate one on the spot), choose how many questions and what style (multiple choice / short answer / mixed), and get a test with a suggested time limit.
+- **Test-taking** — countdown timer, MCQ auto-grading, short-answer grading via Claude with per-question feedback.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Next.js 14 (App Router) + TypeScript + Tailwind CSS, Prisma + Postgres, NextAuth.js (Credentials + Google), `@anthropic-ai/sdk`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Getting started
 
-## Learn More
+1. **Install dependencies**
 
-To learn more about Next.js, take a look at the following resources:
+   ```bash
+   npm install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. **Start a local Postgres**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```bash
+   docker compose up -d
+   ```
 
-## Deploy on Vercel
+3. **Configure environment variables**
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   Copy `.env.example` to `.env` and fill in:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   - `DATABASE_URL` — already points at the docker-compose Postgres by default.
+   - `AUTH_SECRET` — generate with `npx auth secret`.
+   - `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` — optional, only needed for Google sign-in.
+   - `ANTHROPIC_API_KEY` — required for notes/test generation and grading. Get one at [console.anthropic.com](https://console.anthropic.com) → API Keys.
+
+4. **Run the database migration**
+
+   ```bash
+   npx prisma migrate dev
+   ```
+
+5. **Start the dev server**
+
+   ```bash
+   npm run dev
+   ```
+
+   Open [http://localhost:3000](http://localhost:3000).
+
+## Project structure
+
+- `src/lib/ingestion/` — per-source-type adapters (YouTube, generic video captions, PDF, web article, pasted transcript), all converging on a common `{ rawText, title, sourceMeta }` shape.
+- `src/lib/ai/` — Claude API integration: `notes-service.ts`, `test-service.ts`, `grading-service.ts`, their Zod schemas, and prompts.
+- `src/app/api/` — REST routes for sources, notes, and tests.
+- `src/app/(dashboard)/` — the authenticated app (notes, tests, settings).
+
+## Known limitations
+
+- PDF uploads are stored on local disk (`.uploads/`) — fine for local dev, but won't persist on a serverless deploy (Vercel etc.). Swap `src/lib/storage/files.ts` for Vercel Blob or S3 before deploying.
+- YouTube transcript fetching uses an unofficial library — it can fail if a video has no captions, is region-restricted, or the library needs updating.
+- No per-user rate limiting or cost caps on Claude API calls yet — add before any public deployment.
