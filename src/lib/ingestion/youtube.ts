@@ -1,4 +1,4 @@
-import { YoutubeTranscript } from "youtube-transcript";
+import { YoutubeTranscript, YoutubeTranscriptNotAvailableLanguageError } from "youtube-transcript";
 import type { IngestResult, SourceAdapter, SourceAdapterInput } from "./types";
 
 export const youtubeAdapter: SourceAdapter = {
@@ -7,13 +7,25 @@ export const youtubeAdapter: SourceAdapter = {
 
     let segments;
     try {
-      segments = await YoutubeTranscript.fetchTranscript(input.url);
-    } catch {
-      throw new Error(
-        "Couldn't fetch captions for this YouTube video. It may have captions disabled, be " +
-          "region-restricted, or the video ID may be invalid. Try the \"Paste transcript\" option instead " +
-          "if you have the transcript available.",
-      );
+      // Prefer English captions; fall back to whatever's available if the
+      // video doesn't have an English track (e.g. auto-captions in another
+      // language, or a non-English default).
+      segments = await YoutubeTranscript.fetchTranscript(input.url, { lang: "en" });
+    } catch (err) {
+      if (err instanceof YoutubeTranscriptNotAvailableLanguageError) {
+        try {
+          segments = await YoutubeTranscript.fetchTranscript(input.url);
+        } catch {
+          segments = undefined;
+        }
+      }
+      if (!segments) {
+        throw new Error(
+          "Couldn't fetch captions for this YouTube video. It may have captions disabled, be " +
+            "region-restricted, or the video ID may be invalid. Try the \"Paste transcript\" option instead " +
+            "if you have the transcript available.",
+        );
+      }
     }
 
     if (!segments.length) {
