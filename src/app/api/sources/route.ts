@@ -65,14 +65,27 @@ export async function POST(req: Request) {
     }
   }
 
-  const source = await prisma.source.create({
-    data: {
-      userId: session.user.id,
-      type,
-      originalUrl,
-      status: "INGESTING",
-    },
-  });
+  let source;
+  try {
+    source = await prisma.source.create({
+      data: {
+        userId: session.user.id,
+        type,
+        originalUrl,
+        status: "INGESTING",
+      },
+    });
+  } catch (err) {
+    // Foreign key violation on userId means the session references a user
+    // that no longer exists in the database (e.g. after a DB reset/switch).
+    if (err && typeof err === "object" && "code" in err && err.code === "P2003") {
+      return NextResponse.json(
+        { error: "Your session is out of date — please sign out and sign back in." },
+        { status: 401 },
+      );
+    }
+    return NextResponse.json({ error: "Could not create source." }, { status: 500 });
+  }
 
   try {
     const result = await ingestSource(type, ingestInput);
