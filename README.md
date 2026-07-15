@@ -21,17 +21,16 @@ Next.js 14 (App Router) + TypeScript + Tailwind CSS, Prisma + Postgres, NextAuth
    npm install
    ```
 
-2. **Start a local Postgres**
+2. **Get a Postgres database** — two options:
 
-   ```bash
-   docker compose up -d
-   ```
+   - **Neon (recommended)** — sign up free at [neon.com](https://neon.com) (no credit card), create a project, and copy the connection string it gives you. No local install, no Docker.
+   - **Local Postgres via Docker** — if you'd rather run it yourself: `docker compose up -d` (requires Docker Desktop running).
 
 3. **Configure environment variables**
 
    Copy `.env.example` to `.env` and fill in:
 
-   - `DATABASE_URL` — already points at the docker-compose Postgres by default.
+   - `DATABASE_URL` — your Neon connection string, or leave the docker-compose default if using local Postgres.
    - `AUTH_SECRET` — generate with `npx auth secret`.
    - `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` — optional, only needed for Google sign-in.
    - `ANTHROPIC_API_KEY` — required for notes/test generation and grading. Get one at [console.anthropic.com](https://console.anthropic.com) → API Keys.
