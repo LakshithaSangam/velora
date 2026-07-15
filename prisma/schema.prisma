@@ -92,6 +92,7 @@ model Source {
   errorMessage String?
   metadata     Json?
   confirmedAt  DateTime?
+  consentConfirmedAt DateTime? // MEETING_RECORDING only — when the user checked the disclosure box
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 

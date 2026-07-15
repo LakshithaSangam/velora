@@ -40,6 +40,12 @@ export default async function DashboardPage() {
         >
           + New test
         </Link>
+        <Link
+          href="/notes/live"
+          className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900"
+        >
+          🔴 Live meeting notes
+        </Link>
       </div>
     </div>
   );

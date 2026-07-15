@@ -14,12 +14,20 @@ export default async function NotesListPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Notes</h1>
-        <Link
-          href="/notes/new"
-          className="rounded-md bg-black px-4 py-2 text-sm text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
-        >
-          + New notes
-        </Link>
+        <div className="flex gap-3">
+          <Link
+            href="/notes/live"
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900"
+          >
+            🔴 Live meeting notes
+          </Link>
+          <Link
+            href="/notes/new"
+            className="rounded-md bg-black px-4 py-2 text-sm text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+          >
+            + New notes
+          </Link>
+        </div>
       </div>
 
       {notes.length === 0 ? (
