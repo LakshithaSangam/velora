@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const links = [
   { href: "/dashboard", label: "Dashboard" },
@@ -37,6 +38,7 @@ export function DashboardNav({ userLabel }: { userLabel: string }) {
         </nav>
       </div>
       <div className="flex items-center gap-4 text-sm">
+        <ThemeToggle />
         <span className="text-gray-500">{userLabel}</span>
         <button
           onClick={() => signOut({ callbackUrl: "/" })}

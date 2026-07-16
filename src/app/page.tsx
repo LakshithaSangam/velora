@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth/auth";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default async function LandingPage() {
   const session = await auth();
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
+    <main className="relative flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">StudyNotes AI</h1>
       <p className="max-w-xl text-balance text-gray-600 dark:text-gray-400">
         Turn video lectures, PDFs, and articles into structured, section-wise notes —

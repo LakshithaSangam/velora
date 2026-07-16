@@ -174,6 +174,32 @@ export function LiveMeetingSession() {
     };
   }, []);
 
+  // Warn before an accidental refresh/close/navigation mid-recording — a
+  // silent stop would leave the user unsure whether they're still being
+  // recorded. If they leave anyway, best-effort finalize the session so it
+  // doesn't get stuck "GENERATING" forever with no way to view it.
+  useEffect(() => {
+    if (phase !== "recording") return;
+
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    function handlePageHide() {
+      const notesDocumentId = notesDocumentIdRef.current;
+      if (notesDocumentId) {
+        navigator.sendBeacon(`/api/meetings/${notesDocumentId}/finish`, new Blob());
+      }
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("pagehide", handlePageHide);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [phase]);
+
   const mins = String(Math.floor(elapsedSec / 60)).padStart(2, "0");
   const secs = String(elapsedSec % 60).padStart(2, "0");
 
@@ -218,14 +244,25 @@ export function LiveMeetingSession() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="sticky top-0 z-10 -mx-6 flex items-center justify-between border-b border-red-200 bg-red-50 px-6 py-3 dark:border-red-900 dark:bg-red-950">
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
-          <span className="font-medium">{phase === "stopping" ? "Finishing up..." : "Recording"}</span>
+          <span className="font-medium text-red-900 dark:text-red-100">
+            {phase === "stopping" ? "Finishing up..." : "Recording — this tab's shared audio is being transcribed"}
+          </span>
         </div>
-        <span className="tabular-nums text-gray-500">
-          {mins}:{secs}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="tabular-nums text-red-900 dark:text-red-100">
+            {mins}:{secs}
+          </span>
+          <button
+            onClick={stopSession}
+            disabled={phase === "stopping"}
+            className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            {phase === "stopping" ? "Finishing up..." : "Stop sharing"}
+          </button>
+        </div>
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -246,14 +283,6 @@ export function LiveMeetingSession() {
           ))
         )}
       </div>
-
-      <button
-        onClick={stopSession}
-        disabled={phase === "stopping"}
-        className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
-      >
-        {phase === "stopping" ? "Finishing up..." : "Stop session"}
-      </button>
     </div>
   );
 }
