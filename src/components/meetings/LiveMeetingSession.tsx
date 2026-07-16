@@ -45,8 +45,14 @@ export function LiveMeetingSession() {
           "No audio was shared. When picking what to share, make sure to check \"Share audio\" / \"Share tab audio\".",
         );
       }
-      displayStream.getVideoTracks().forEach((t) => t.stop());
+      // Deliberately NOT stopping the video track here, even though we only
+      // read audio: Chrome's native "you are sharing your screen — Stop
+      // sharing" indicator (the one Google Meet also relies on) is tied to
+      // that video track staying alive. Killing it early makes the native
+      // stop-sharing control disappear along with it. Both tracks get
+      // stopped together in stopSession() when the user actually stops.
       streamRef.current = displayStream;
+      displayStream.getVideoTracks()[0]?.addEventListener("ended", () => stopSession());
       displayStream.getAudioTracks()[0].addEventListener("ended", () => stopSession());
 
       setPhase("connecting");
