@@ -7,11 +7,11 @@ import type { NotesResult } from "@/lib/ai/schemas/notes.schema";
 
 const FLUSH_INTERVAL_MS = 45_000;
 
-type Phase = "starting" | "requesting-permission" | "connecting" | "recording" | "stopping" | "error";
+type Phase = "idle" | "requesting-permission" | "connecting" | "recording" | "stopping" | "error";
 
 export function LiveMeetingSession() {
   const router = useRouter();
-  const [phase, setPhase] = useState<Phase>("starting");
+  const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<NotesResult | null>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
@@ -25,95 +25,97 @@ export function LiveMeetingSession() {
   const flushIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stoppingRef = useRef(false);
+  const cancelledRef = useRef(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  // Must be called directly from a user click (e.g. a button's onClick) —
+  // getDisplayMedia() requires an unbroken user-gesture chain, and browsers
+  // silently deny it with no picker shown if it's invoked from a useEffect,
+  // a timer, or after an earlier unrelated await.
+  async function begin() {
+    try {
+      setPhase("requesting-permission");
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      if (cancelledRef.current) {
+        displayStream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      if (displayStream.getAudioTracks().length === 0) {
+        displayStream.getTracks().forEach((t) => t.stop());
+        throw new Error(
+          "No audio was shared. When picking what to share, make sure to check \"Share audio\" / \"Share tab audio\".",
+        );
+      }
+      displayStream.getVideoTracks().forEach((t) => t.stop());
+      streamRef.current = displayStream;
+      displayStream.getAudioTracks()[0].addEventListener("ended", () => stopSession());
 
-    async function begin() {
-      try {
-        setPhase("requesting-permission");
-        const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-        if (cancelled) {
-          displayStream.getTracks().forEach((t) => t.stop());
-          return;
+      setPhase("connecting");
+      const startRes = await fetch("/api/meetings/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ consentConfirmed: true }),
+      });
+      const startData = await startRes.json();
+      if (!startRes.ok) throw new Error(startData.error ?? "Could not start the session.");
+      notesDocumentIdRef.current = startData.notesDocumentId;
+
+      const tokenRes = await fetch("/api/meetings/token", { method: "POST" });
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok) throw new Error(tokenData.error ?? "Could not get a transcription token.");
+
+      const dg = new DeepgramClient({ accessToken: tokenData.accessToken });
+      const connection = await dg.listen.v1.connect({
+        model: "nova-3",
+        language: "en",
+        punctuate: "true",
+        interim_results: "true",
+        smart_format: "true",
+      });
+      socketRef.current = connection;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      connection.on("message", (data: any) => {
+        if (data.type === "Results" && data.is_final) {
+          const text = data.channel?.alternatives?.[0]?.transcript ?? "";
+          if (text.trim()) pendingTranscriptRef.current += (pendingTranscriptRef.current ? " " : "") + text.trim();
         }
-        if (displayStream.getAudioTracks().length === 0) {
-          displayStream.getTracks().forEach((t) => t.stop());
-          throw new Error(
-            "No audio was shared. When picking what to share, make sure to check \"Share audio\" / \"Share tab audio\".",
-          );
-        }
-        displayStream.getVideoTracks().forEach((t) => t.stop());
-        streamRef.current = displayStream;
-        displayStream.getAudioTracks()[0].addEventListener("ended", () => stopSession());
+      });
+      connection.on("error", () => {
+        if (!cancelledRef.current) setError("Lost connection to the transcription service.");
+      });
 
-        setPhase("connecting");
-        const startRes = await fetch("/api/meetings/start", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ consentConfirmed: true }),
-        });
-        const startData = await startRes.json();
-        if (!startRes.ok) throw new Error(startData.error ?? "Could not start the session.");
-        notesDocumentIdRef.current = startData.notesDocumentId;
+      connection.connect();
+      await connection.waitForOpen();
+      if (cancelledRef.current) return;
 
-        const tokenRes = await fetch("/api/meetings/token", { method: "POST" });
-        const tokenData = await tokenRes.json();
-        if (!tokenRes.ok) throw new Error(tokenData.error ?? "Could not get a transcription token.");
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
+      const recorder = new MediaRecorder(displayStream, { mimeType });
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0 && socketRef.current) socketRef.current.sendMedia(e.data);
+      };
+      recorder.start(250);
+      recorderRef.current = recorder;
 
-        const dg = new DeepgramClient({ accessToken: tokenData.accessToken });
-        const connection = await dg.listen.v1.connect({
-          model: "nova-3",
-          language: "en",
-          punctuate: "true",
-          interim_results: "true",
-          smart_format: "true",
-        });
-        socketRef.current = connection;
+      flushIntervalRef.current = setInterval(flushPendingTranscript, FLUSH_INTERVAL_MS);
+      timerIntervalRef.current = setInterval(() => setElapsedSec((s) => s + 1), 1000);
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        connection.on("message", (data: any) => {
-          if (data.type === "Results" && data.is_final) {
-            const text = data.channel?.alternatives?.[0]?.transcript ?? "";
-            if (text.trim()) pendingTranscriptRef.current += (pendingTranscriptRef.current ? " " : "") + text.trim();
-          }
-        });
-        connection.on("error", () => {
-          if (!cancelled) setError("Lost connection to the transcription service.");
-        });
-
-        connection.connect();
-        await connection.waitForOpen();
-        if (cancelled) return;
-
-        const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-          ? "audio/webm;codecs=opus"
-          : "audio/webm";
-        const recorder = new MediaRecorder(displayStream, { mimeType });
-        recorder.ondataavailable = (e) => {
-          if (e.data.size > 0 && socketRef.current) socketRef.current.sendMedia(e.data);
-        };
-        recorder.start(250);
-        recorderRef.current = recorder;
-
-        flushIntervalRef.current = setInterval(flushPendingTranscript, FLUSH_INTERVAL_MS);
-        timerIntervalRef.current = setInterval(() => setElapsedSec((s) => s + 1), 1000);
-
-        setPhase("recording");
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Could not start the live session.");
-          setPhase("error");
-        }
+      setPhase("recording");
+    } catch (err) {
+      if (!cancelledRef.current) {
+        const message = err instanceof Error ? err.message : "Could not start the live session.";
+        // NotAllowedError fires both when the user clicks "Cancel" in the
+        // picker and (confusingly) when the browser blocks the call outright.
+        setError(
+          message.includes("NotAllowedError") || message.includes("Permission denied")
+            ? "Screen-share permission was denied or cancelled. Click \"Share your screen\" and pick a tab/window/screen with audio to try again."
+            : message,
+        );
+        setPhase("error");
       }
     }
-
-    begin();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }
 
   async function flushPendingTranscript() {
     const chunk = pendingTranscriptRef.current;
@@ -163,6 +165,7 @@ export function LiveMeetingSession() {
 
   useEffect(() => {
     return () => {
+      cancelledRef.current = true;
       recorderRef.current?.stop();
       streamRef.current?.getTracks().forEach((t) => t.stop());
       socketRef.current?.close();
@@ -174,17 +177,42 @@ export function LiveMeetingSession() {
   const mins = String(Math.floor(elapsedSec / 60)).padStart(2, "0");
   const secs = String(elapsedSec % 60).padStart(2, "0");
 
+  if (phase === "idle") {
+    return (
+      <div className="space-y-3">
+        <p className="text-gray-600 dark:text-gray-400">
+          When you click below, your browser will ask which tab, window, or screen to share. Pick the one
+          with your meeting, and make sure "Share audio" is checked.
+        </p>
+        <button
+          onClick={begin}
+          className="rounded-md bg-black px-4 py-2 text-sm text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+        >
+          Share your screen and start
+        </button>
+      </div>
+    );
+  }
+
   if (phase === "error") {
-    return <p className="text-sm text-red-600">{error}</p>;
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-red-600">{error}</p>
+        <button
+          onClick={begin}
+          className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900"
+        >
+          Try again
+        </button>
+      </div>
+    );
   }
 
   if (phase !== "recording" && phase !== "stopping") {
     const label =
       phase === "requesting-permission"
         ? "Waiting for you to pick what to share..."
-        : phase === "connecting"
-          ? "Connecting..."
-          : "Starting...";
+        : "Connecting...";
     return <p className="text-gray-500">{label}</p>;
   }
 

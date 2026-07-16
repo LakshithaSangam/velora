@@ -11,15 +11,15 @@ export function ConsentGate({ onConfirm }: { onConfirm: () => void }) {
 
       <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
         <p>
-          This feature listens to the audio of a tab, window, or screen you choose to share (for example, a
-          Zoom or Google Meet call), transcribes it, and uses AI to build live notes. It does not join the
-          meeting as a bot or interact with Zoom/Meet in any way — it only captures audio your own browser
-          is already playing.
+          This feature listens to the audio of a tab, window, or screen you choose to share, for example a
+          Zoom or Google Meet call. It transcribes that audio and uses AI to build live notes. Nothing here
+          joins the meeting as a bot or interacts with Zoom or Meet in any way. It simply captures audio your
+          own browser is already playing.
         </p>
         <p>
-          Recording or transcribing a conversation without telling the other participants is illegal in many
-          places, regardless of how the recording happens. <strong>You are responsible for informing everyone
-          else in the meeting</strong> that you're using this tool before you start.
+          In many places, recording or transcribing a conversation without telling the other participants is
+          illegal, no matter how the recording happens. <strong>You are responsible for letting everyone else
+          in the meeting know</strong> that you are using this tool before you start.
         </p>
       </div>
 
@@ -31,8 +31,8 @@ export function ConsentGate({ onConfirm }: { onConfirm: () => void }) {
           className="mt-0.5"
         />
         <span>
-          I confirm I have informed all other participants in this meeting that I'm using an AI note-taking
-          tool, and they are aware they may be recorded or transcribed.
+          I confirm I have told everyone else in this meeting that I am using an AI tool to take notes, and
+          they know they may be recorded or transcribed.
         </span>
       </label>
 
