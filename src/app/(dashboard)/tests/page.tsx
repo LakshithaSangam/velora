@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
+import { withMinDelay } from "@/lib/utils/min-delay";
 
 export default async function TestsListPage() {
   const session = await auth();
-  const tests = await prisma.test.findMany({
-    where: { userId: session!.user.id },
-    orderBy: { createdAt: "desc" },
-  });
+  const tests = await withMinDelay(
+    prisma.test.findMany({
+      where: { userId: session!.user.id },
+      orderBy: { createdAt: "desc" },
+    }),
+  );
 
   return (
     <div className="space-y-6">

@@ -1,16 +1,19 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
+import { withMinDelay } from "@/lib/utils/min-delay";
 
 export default async function DashboardPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  const [notesCount, testsCount, attemptsCount] = await Promise.all([
-    prisma.notesDocument.count({ where: { userId } }),
-    prisma.test.count({ where: { userId } }),
-    prisma.testAttempt.count({ where: { userId } }),
-  ]);
+  const [notesCount, testsCount, attemptsCount] = await withMinDelay(
+    Promise.all([
+      prisma.notesDocument.count({ where: { userId } }),
+      prisma.test.count({ where: { userId } }),
+      prisma.testAttempt.count({ where: { userId } }),
+    ]),
+  );
 
   return (
     <div className="space-y-8">

@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
+import { withMinDelay } from "@/lib/utils/min-delay";
 
 export default async function NotesListPage() {
   const session = await auth();
-  const notes = await prisma.notesDocument.findMany({
-    where: { userId: session!.user.id },
-    orderBy: { createdAt: "desc" },
-    include: { source: true },
-  });
+  const notes = await withMinDelay(
+    prisma.notesDocument.findMany({
+      where: { userId: session!.user.id },
+      orderBy: { createdAt: "desc" },
+      include: { source: true },
+    }),
+  );
 
   return (
     <div className="space-y-6">

@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth/auth";
+import { withMinDelay } from "@/lib/utils/min-delay";
 
 export default async function SettingsPage() {
-  const session = await auth();
+  const session = await withMinDelay(auth());
 
   return (
     <div className="space-y-6">
