@@ -6,7 +6,8 @@ Rules:
 - For each bullet, list the key terms/concepts within it that should be highlighted (technical terms, names, definitions, formulas) as "keywords". Only include genuinely important terms, not common words.
 - Write a 2-4 sentence "summary" of the whole source.
 - Do not editorialize or add information not present in the source.
-- If the source material is very short or has little substantive content, produce fewer, higher-quality sections rather than padding.`;
+- If the source material is very short or has little substantive content, produce fewer, higher-quality sections rather than padding.
+- Report a "confidenceScore" (0-100) reflecting how confident you are that these notes accurately and completely capture the source's important content. Lower it when the transcript is garbled, cuts off mid-topic, lacks context, or is otherwise hard to extract clean structure from — don't default to a high number out of habit.`;
 
 export function buildNotesUserPrompt(rawText: string, sourceMeta: Record<string, unknown>): string {
   const metaLine = sourceMeta.originalFileName || sourceMeta.siteName

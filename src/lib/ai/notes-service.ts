@@ -1,111 +1,82 @@
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { anthropic } from "./client";
+import { generateStructured, countTokens } from "./generate-structured";
 import { MODELS, CHUNK_THRESHOLD_TOKENS, CHUNK_TARGET_TOKENS } from "./models";
 import { NotesSchema, type NotesResult } from "./schemas/notes.schema";
 import { NOTES_SYSTEM_PROMPT, buildNotesUserPrompt } from "./prompts/notes-extraction.prompt";
 import { NOTES_REDUCE_SYSTEM_PROMPT, buildNotesReduceUserPrompt } from "./prompts/notes-reduce.prompt";
 import { splitIntoChunks } from "./chunking";
 
-function extractText(message: { content: Array<{ type: string; text?: string }> }): string {
-  const textBlock = message.content.find((b) => b.type === "text");
-  if (!textBlock?.text) throw new Error("Claude returned no text content.");
-  return textBlock.text;
-}
-
-async function extractNotesFromText(rawText: string, sourceMeta: Record<string, unknown>): Promise<NotesResult> {
-  const stream = anthropic.messages.stream({
+async function extractNotesFromText(
+  rawText: string,
+  sourceMeta: Record<string, unknown>,
+): Promise<{ data: NotesResult; model: string }> {
+  return generateStructured({
     model: MODELS.notes,
-    max_tokens: 32000,
-    thinking: { type: "adaptive" },
-    system: [{ type: "text", text: NOTES_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-    output_config: { format: zodOutputFormat(NotesSchema), effort: "high" },
-    messages: [{ role: "user", content: buildNotesUserPrompt(rawText, sourceMeta) }],
+    systemPrompt: NOTES_SYSTEM_PROMPT,
+    content: buildNotesUserPrompt(rawText, sourceMeta),
+    schema: NotesSchema,
+    maxOutputTokens: 32000,
   });
-  const message = await stream.finalMessage();
-  return NotesSchema.parse(JSON.parse(extractText(message)));
 }
 
-/** For a single chunk in the map phase — same schema, chunk-scoped, lighter effort. */
-async function extractPartialNotes(chunkText: string): Promise<NotesResult> {
-  const stream = anthropic.messages.stream({
+/** For a single chunk in the map phase — same schema, chunk-scoped. */
+async function extractPartialNotes(chunkText: string): Promise<{ data: NotesResult; model: string }> {
+  return generateStructured({
     model: MODELS.notes,
-    max_tokens: 16000,
-    thinking: { type: "adaptive" },
-    system: [{ type: "text", text: NOTES_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-    output_config: { format: zodOutputFormat(NotesSchema), effort: "medium" },
-    messages: [
-      {
-        role: "user",
-        content: `${buildNotesUserPrompt(chunkText, {})}\n\n(Note: this is one chunk of a longer source — extract only what's covered in this chunk.)`,
-      },
-    ],
+    systemPrompt: NOTES_SYSTEM_PROMPT,
+    content: `${buildNotesUserPrompt(chunkText, {})}\n\n(Note: this is one chunk of a longer source — extract only what's covered in this chunk.)`,
+    schema: NotesSchema,
+    maxOutputTokens: 16000,
   });
-  const message = await stream.finalMessage();
-  return NotesSchema.parse(JSON.parse(extractText(message)));
 }
 
-async function reduceNotes(partials: NotesResult[]): Promise<NotesResult> {
+async function reduceNotes(partials: NotesResult[]): Promise<{ data: NotesResult; model: string }> {
   const partialSectionsJson = JSON.stringify(partials.map((p) => p.sections));
-  const stream = anthropic.messages.stream({
+  return generateStructured({
     model: MODELS.notes,
-    max_tokens: 32000,
-    thinking: { type: "adaptive" },
-    system: [{ type: "text", text: NOTES_REDUCE_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-    output_config: { format: zodOutputFormat(NotesSchema), effort: "high" },
-    messages: [{ role: "user", content: buildNotesReduceUserPrompt(partialSectionsJson) }],
+    systemPrompt: NOTES_REDUCE_SYSTEM_PROMPT,
+    content: buildNotesReduceUserPrompt(partialSectionsJson),
+    schema: NotesSchema,
+    maxOutputTokens: 32000,
   });
-  const message = await stream.finalMessage();
-  return NotesSchema.parse(JSON.parse(extractText(message)));
 }
 
 export async function generateNotesFromText(
   rawText: string,
   sourceMeta: Record<string, unknown>,
 ): Promise<{ notes: NotesResult; model: string }> {
-  const countRes = await anthropic.messages.countTokens({
-    model: MODELS.notes,
-    messages: [{ role: "user", content: buildNotesUserPrompt(rawText, sourceMeta) }],
-  });
+  const totalTokens = await countTokens(MODELS.notes, buildNotesUserPrompt(rawText, sourceMeta));
 
-  let notes: NotesResult;
-  if (countRes.input_tokens > CHUNK_THRESHOLD_TOKENS) {
+  if (totalTokens > CHUNK_THRESHOLD_TOKENS) {
     const chunks = splitIntoChunks(rawText, CHUNK_TARGET_TOKENS);
     const partials = await Promise.all(chunks.map((chunk) => extractPartialNotes(chunk)));
-    notes = partials.length > 1 ? await reduceNotes(partials) : partials[0];
-  } else {
-    notes = await extractNotesFromText(rawText, sourceMeta);
+    if (partials.length > 1) {
+      const { data, model } = await reduceNotes(partials.map((p) => p.data));
+      // The reduce prompt only sees `.sections`, not the map step's confidence
+      // scores, so its own guess isn't meaningful — use the real average instead.
+      const avgConfidence =
+        partials.reduce((sum, p) => sum + p.data.confidenceScore, 0) / partials.length;
+      return { notes: { ...data, confidenceScore: Math.round(avgConfidence) }, model };
+    }
+    return { notes: partials[0].data, model: partials[0].model };
   }
 
-  return { notes, model: MODELS.notes };
+  const { data, model } = await extractNotesFromText(rawText, sourceMeta);
+  return { notes: data, model };
 }
 
 export async function generateNotesFromPdf(
   pdfBase64: string,
   sourceMeta: Record<string, unknown>,
 ): Promise<{ notes: NotesResult; model: string }> {
-  const stream = anthropic.messages.stream({
+  const { data, model } = await generateStructured({
     model: MODELS.notes,
-    max_tokens: 32000,
-    thinking: { type: "adaptive" },
-    system: [{ type: "text", text: NOTES_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-    output_config: { format: zodOutputFormat(NotesSchema), effort: "high" },
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "document",
-            source: { type: "base64", media_type: "application/pdf", data: pdfBase64 },
-          },
-          {
-            type: "text",
-            text: buildNotesUserPrompt("(see attached PDF)", sourceMeta),
-          },
-        ],
-      },
+    systemPrompt: NOTES_SYSTEM_PROMPT,
+    content: [
+      { inlineData: { data: pdfBase64, mimeType: "application/pdf" } },
+      { text: buildNotesUserPrompt("(see attached PDF)", sourceMeta) },
     ],
+    schema: NotesSchema,
+    maxOutputTokens: 32000,
   });
-  const message = await stream.finalMessage();
-  const notes = NotesSchema.parse(JSON.parse(extractText(message)));
-  return { notes, model: MODELS.notes };
+  return { notes: data, model };
 }

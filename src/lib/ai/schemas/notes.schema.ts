@@ -14,6 +14,13 @@ export const NotesSchema = z.object({
       ),
     }),
   ),
+  confidenceScore: z
+    .number()
+    .min(0)
+    .max(100)
+    .describe(
+      "Your own confidence (0-100) that these notes accurately and completely capture the source's important content — lower it for garbled transcripts, missing context, or ambiguous material.",
+    ),
 });
 
 export type NotesResult = z.infer<typeof NotesSchema>;

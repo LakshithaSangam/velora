@@ -1,36 +1,48 @@
 import type { QuestionStyle } from "@prisma/client";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { anthropic } from "./client";
+import { generateStructured } from "./generate-structured";
 import { MODELS } from "./models";
-import { TestGenerationSchema, type GeneratedQuestion } from "./schemas/test.schema";
+import { TestGenerationSchema, type GeneratedQuestion, type RawQuestion } from "./schemas/test.schema";
 import { TEST_GENERATION_SYSTEM_PROMPT, buildTestGenerationUserPrompt } from "./prompts/test-generation.prompt";
 
-function extractText(message: { content: Array<{ type: string; text?: string }> }): string {
-  const textBlock = message.content.find((b) => b.type === "text");
-  if (!textBlock?.text) throw new Error("Claude returned no text content.");
-  return textBlock.text;
+function normalizeQuestion(q: RawQuestion): GeneratedQuestion | null {
+  if (q.type === "MCQ") {
+    if (
+      !q.options ||
+      q.options.length !== 4 ||
+      q.correctOptionIndex === undefined ||
+      q.correctOptionIndex < 0 ||
+      q.correctOptionIndex > 3
+    ) {
+      return null;
+    }
+    return { type: "MCQ", prompt: q.prompt, options: q.options, correctOptionIndex: q.correctOptionIndex };
+  }
+  if (!q.modelAnswer) return null;
+  return { type: "SHORT_ANSWER", prompt: q.prompt, modelAnswer: q.modelAnswer };
 }
 
 export async function generateTest(
   sourceText: string,
   questionCount: number,
   style: QuestionStyle,
+  repeatQuestions: GeneratedQuestion[] = [],
 ): Promise<{ questions: GeneratedQuestion[]; model: string }> {
-  const stream = anthropic.messages.stream({
+  const freshCount = Math.max(1, questionCount - repeatQuestions.length);
+
+  const { data, model } = await generateStructured({
     model: MODELS.testGen,
-    max_tokens: 32000,
-    thinking: { type: "adaptive" },
-    system: [{ type: "text", text: TEST_GENERATION_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-    output_config: { format: zodOutputFormat(TestGenerationSchema), effort: "high" },
-    messages: [{ role: "user", content: buildTestGenerationUserPrompt(sourceText, questionCount, style) }],
+    systemPrompt: TEST_GENERATION_SYSTEM_PROMPT,
+    content: buildTestGenerationUserPrompt(sourceText, freshCount, style),
+    schema: TestGenerationSchema,
+    maxOutputTokens: 32000,
   });
 
-  const message = await stream.finalMessage();
-  const result = TestGenerationSchema.parse(JSON.parse(extractText(message)));
+  const freshQuestions = data.questions.map(normalizeQuestion).filter((q): q is GeneratedQuestion => q !== null);
+  const questions = [...repeatQuestions, ...freshQuestions];
 
-  if (result.questions.length === 0) {
-    throw new Error("Claude did not return any questions.");
+  if (questions.length === 0) {
+    throw new Error("Gemini did not return any valid questions.");
   }
 
-  return { questions: result.questions, model: MODELS.testGen };
+  return { questions, model };
 }
