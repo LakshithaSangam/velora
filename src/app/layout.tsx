@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "StudyNotes AI",
+  title: "Velora",
   description: "Turn lectures, PDFs, and articles into structured notes and practice tests.",
 };
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth/auth";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { VeloraLogo } from "@/components/VeloraLogo";
 
 export default async function LandingPage() {
   const session = await auth();
@@ -10,10 +11,10 @@ export default async function LandingPage() {
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
-      <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">StudyNotes AI</h1>
+      <VeloraLogo scale={1.8} />
       <p className="max-w-xl text-balance text-gray-600 dark:text-gray-400">
-        Turn video lectures, PDFs, and articles into structured, section-wise notes —
-        then generate a practice test from them, on your schedule.
+        Turn video lectures, PDFs, and articles into structured, section-wise notes.
+        Then generate a practice test from them, on your schedule.
       </p>
       <div className="flex gap-3">
         {session?.user ? (
