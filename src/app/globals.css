@@ -26,3 +26,109 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Mascot cat: a small vertical bob during its short, calm walks, and a slow
+   settle/breathe while asleep. Both are straight, single-axis motions —
+   deliberately not a spin or loop, since a "spinning" mascot animation was
+   tried before and felt chaotic rather than lifelike. */
+@keyframes catWalkBob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes catBreathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.97);
+  }
+}
+
+/* Mascot puppy: a bigger, springier bounce than the cat's subtle bob, since
+   puppies hop rather than stride — same single straight-line movement
+   underneath, just a bouncier vertical accent on top of it. */
+@keyframes dogHop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Mascot hamster: a side-to-side rock instead of a vertical bounce, for a
+   waddle rather than a stride or a hop. */
+@keyframes hamsterWaddle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-6deg);
+  }
+  75% {
+    transform: rotate(6deg);
+  }
+}
+
+/* Mascot rabbit: the springiest, biggest bounce of the family — rabbits
+   properly hop. */
+@keyframes rabbitHop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  45% {
+    transform: translateY(-14px);
+  }
+  60% {
+    transform: translateY(-14px);
+  }
+}
+
+/* Mascot koala: barely moves at all — slow and sedentary, matching the real
+   animal's reputation. */
+@keyframes koalaShuffle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Mascot panda: a gentle, unhurried amble — slower and calmer than the
+   cat's bob. */
+@keyframes pandaAmble {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+/* Mascot owl: a curious side-to-side head-tilt rather than a bounce or a
+   waddle. */
+@keyframes owlBob {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-4deg);
+  }
+  75% {
+    transform: rotate(4deg);
+  }
+}
