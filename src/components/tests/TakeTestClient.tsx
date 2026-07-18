@@ -81,6 +81,12 @@ export function TakeTestClient({ testId }: { testId: string }) {
     }
   }, [attemptId, questions, mcqAnswers, textAnswers, testId, router]);
 
+  function handleExit() {
+    if (window.confirm("Exit this test? Your answers so far will not be saved.")) {
+      router.push("/tests");
+    }
+  }
+
   if (error) return <p className="text-sm text-red-600">{error}</p>;
   if (!questions || !attemptId || timeLimitMinutes === null) {
     return <p className="text-gray-500">Loading test...</p>;
@@ -90,7 +96,16 @@ export function TakeTestClient({ testId }: { testId: string }) {
     <div className="max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Test in progress</h1>
-        <TestTimer timeLimitMinutes={timeLimitMinutes} onExpire={handleSubmit} />
+        <div className="flex items-center gap-3">
+          <TestTimer timeLimitMinutes={timeLimitMinutes} onExpire={handleSubmit} />
+          <button
+            type="button"
+            onClick={handleExit}
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900"
+          >
+            Exit test
+          </button>
+        </div>
       </div>
 
       <div className="space-y-8">

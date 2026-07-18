@@ -16,6 +16,18 @@ const BodySchema = z.object({
 
 export async function POST(
   req: Request,
+  ctx: { params: Promise<{ id: string; attemptId: string }> },
+) {
+  try {
+    return await handlePOST(req, ctx);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unexpected server error.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+async function handlePOST(
+  req: Request,
   { params }: { params: Promise<{ id: string; attemptId: string }> },
 ) {
   const session = await auth();
@@ -52,7 +64,7 @@ export async function POST(
     });
   }
 
-  // Short answer: one batched Claude call for the whole attempt.
+  // Short answer: one batched Gemini call for the whole attempt.
   const shortAnswerQuestions = questions.filter((q) => q.type === "SHORT_ANSWER");
   const shortAnswerInputs = shortAnswerQuestions.map((q) => ({
     questionId: q.id,

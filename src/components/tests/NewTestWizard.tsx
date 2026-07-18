@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { TestSourcePicker, type ExistingNotesOption } from "./TestSourcePicker";
-import { TestConfigForm, type QuestionStyle } from "./TestConfigForm";
+import { TestConfigForm, type TestConfig } from "./TestConfigForm";
 
 export function NewTestWizard({ existingNotes }: { existingNotes: ExistingNotesOption[] }) {
   const router = useRouter();
@@ -11,7 +11,7 @@ export function NewTestWizard({ existingNotes }: { existingNotes: ExistingNotesO
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleGenerate(config: { requestedQuestionCount: number; questionStyle: QuestionStyle }) {
+  async function handleGenerate(config: TestConfig) {
     if (!notesDocumentId) return;
     setError(null);
     setLoading(true);
