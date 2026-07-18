@@ -9,6 +9,15 @@ import { readUploadedFile } from "@/lib/storage/files";
 const BodySchema = z.object({ sourceId: z.string().min(1) });
 
 export async function POST(req: Request) {
+  try {
+    return await handlePOST(req);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unexpected server error.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+async function handlePOST(req: Request) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

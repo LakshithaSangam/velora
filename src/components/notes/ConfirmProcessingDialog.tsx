@@ -1,6 +1,7 @@
 "use client";
 
 import type { IngestedSource } from "./SourcePicker";
+import { useMascotErrorMood, useMascotLoadingMood } from "@/lib/mascot-bus";
 
 export function ConfirmProcessingDialog({
   source,
@@ -15,6 +16,9 @@ export function ConfirmProcessingDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  useMascotLoadingMood(loading);
+  useMascotErrorMood(error);
+
   return (
     <div className="space-y-4 rounded-lg border border-gray-200 p-5 dark:border-gray-800">
       <div>
@@ -29,7 +33,7 @@ export function ConfirmProcessingDialog({
 
       <p className="text-sm text-gray-600 dark:text-gray-400">
         AI will now read this source and generate structured notes. This sends the content above
-        to Claude. Proceed?
+        to Gemini. Proceed?
       </p>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

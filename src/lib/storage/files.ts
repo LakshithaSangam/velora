@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { mkdir, readFile, writeFile } from "fs/promises";
+import { mkdir, readFile, writeFile, unlink } from "fs/promises";
 import path from "path";
 
 // Local-disk storage for dev only. On a serverless deploy (Vercel etc.) the
@@ -18,4 +18,11 @@ export async function saveUploadedFile(buffer: Buffer, originalName: string): Pr
 export async function readUploadedFile(fileKey: string): Promise<Buffer> {
   const safeName = path.basename(fileKey);
   return readFile(path.join(UPLOAD_DIR, safeName));
+}
+
+export async function deleteUploadedFile(fileKey: string): Promise<void> {
+  const safeName = path.basename(fileKey);
+  await unlink(path.join(UPLOAD_DIR, safeName)).catch(() => {
+    // Already gone or never existed — deleting is idempotent either way.
+  });
 }

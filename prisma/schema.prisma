@@ -70,7 +70,9 @@ enum SourceType {
   PDF
   WEB_ARTICLE
   PASTED_TRANSCRIPT
-  MEETING_RECORDING // reserved for the future meetings module — not implemented in MVP
+  MEETING_RECORDING
+  MEDIA_UPLOAD // user-uploaded audio/video file, transcribed via Whisper
+  DOCUMENT_UPLOAD // user-uploaded Word (.docx) or Excel (.xlsx) file
 }
 
 enum SourceStatus {

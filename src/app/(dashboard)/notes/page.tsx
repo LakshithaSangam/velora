@@ -2,6 +2,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { withMinDelay } from "@/lib/utils/min-delay";
+import { DeleteItemButton } from "@/components/DeleteItemButton";
 
 export default async function NotesListPage() {
   const session = await auth();
@@ -16,7 +17,7 @@ export default async function NotesListPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Notes</h1>
+        <h1 className="text-2xl font-semibold">📝 Notes</h1>
         <div className="flex gap-3">
           <Link
             href="/notes/live"
@@ -40,13 +41,19 @@ export default async function NotesListPage() {
       ) : (
         <ul className="divide-y divide-gray-200 dark:divide-gray-800">
           {notes.map((n) => (
-            <li key={n.id} className="py-3">
-              <Link href={`/notes/${n.id}`} className="font-medium hover:underline">
-                {n.title}
-              </Link>
-              <div className="text-sm text-gray-500">
-                {n.source.type} · {n.status}
+            <li key={n.id} className="flex items-center justify-between py-3">
+              <div>
+                <Link href={`/notes/${n.id}`} className="font-medium hover:underline">
+                  {n.title}
+                </Link>
+                <div className="text-sm text-gray-500">
+                  {n.source.type} · {n.status}
+                </div>
               </div>
+              <DeleteItemButton
+                deleteUrl={`/api/notes/${n.id}`}
+                confirmMessage={`Delete "${n.title}"? This can't be undone.`}
+              />
             </li>
           ))}
         </ul>

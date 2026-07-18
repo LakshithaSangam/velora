@@ -17,6 +17,18 @@ const PastedBodySchema = z.object({
 });
 
 export async function POST(req: Request) {
+  try {
+    return await handlePOST(req);
+  } catch (err) {
+    // Safety net: any unexpected failure (auth, DB connection hiccup, etc.)
+    // before the specific try/catch blocks below still returns JSON instead
+    // of Next.js's HTML error page, which breaks res.json() on the client.
+    const message = err instanceof Error ? err.message : "Unexpected server error.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+async function handlePOST(req: Request) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -29,17 +41,55 @@ export async function POST(req: Request) {
   if (contentType.includes("multipart/form-data")) {
     const form = await req.formData();
     const formType = form.get("type");
-    if (formType !== "PDF") {
-      return NextResponse.json({ error: "Only PDF uploads use multipart requests." }, { status: 400 });
+    if (formType !== "PDF" && formType !== "MEDIA_UPLOAD" && formType !== "DOCUMENT_UPLOAD") {
+      return NextResponse.json(
+        { error: "Only PDF, audio/video, and Word/Excel uploads use multipart requests." },
+        { status: 400 },
+      );
     }
     const file = form.get("file");
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "No file provided." }, { status: 400 });
     }
-    if (file.type !== "application/pdf") {
-      return NextResponse.json({ error: "Only PDF files are supported." }, { status: 400 });
+    if (formType === "PDF") {
+      if (file.type !== "application/pdf") {
+        return NextResponse.json({ error: "Only PDF files are supported." }, { status: 400 });
+      }
+      type = "PDF";
+    } else if (formType === "MEDIA_UPLOAD") {
+      const ALLOWED_MEDIA_TYPES = [
+        "audio/flac",
+        "audio/mpeg",
+        "audio/mp4",
+        "video/mp4",
+        "audio/mpga",
+        "audio/m4a",
+        "audio/ogg",
+        "audio/wav",
+        "audio/x-wav",
+        "audio/webm",
+        "video/webm",
+      ];
+      if (!ALLOWED_MEDIA_TYPES.includes(file.type)) {
+        return NextResponse.json(
+          { error: "Unsupported file type. Use mp3, mp4, m4a, wav, ogg, webm, or flac." },
+          { status: 400 },
+        );
+      }
+      type = "MEDIA_UPLOAD";
+    } else {
+      const ALLOWED_DOCUMENT_TYPES = [
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+      ];
+      if (!ALLOWED_DOCUMENT_TYPES.includes(file.type)) {
+        return NextResponse.json(
+          { error: "Unsupported file type. Use a .docx (Word) or .xlsx (Excel) file." },
+          { status: 400 },
+        );
+      }
+      type = "DOCUMENT_UPLOAD";
     }
-    type = "PDF";
     fileName = file.name;
     const arrayBuffer = await file.arrayBuffer();
     ingestInput = { fileBuffer: Buffer.from(arrayBuffer), fileName };

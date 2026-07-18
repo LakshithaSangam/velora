@@ -2,7 +2,7 @@ import { PDFParse } from "pdf-parse";
 import type { IngestResult, SourceAdapter, SourceAdapterInput } from "./types";
 import { saveUploadedFile } from "@/lib/storage/files";
 
-const MAX_PDF_BYTES = 32 * 1024 * 1024; // Claude's direct-attach limit
+const MAX_PDF_BYTES = 32 * 1024 * 1024; // Gemini's direct-attach limit
 
 export const pdfAdapter: SourceAdapter & {
   ingestWithFileKey(input: SourceAdapterInput): Promise<IngestResult & { fileKey: string }>;
@@ -28,7 +28,7 @@ export const pdfAdapter: SourceAdapter & {
       rawText = parsed.text.trim();
       pageCount = parsed.total;
     } catch {
-      // Image-only / unparsable PDF — Claude's native reading at generation
+      // Image-only / unparsable PDF — Gemini's native reading at generation
       // time will still handle this; rawText just stays empty for now.
     } finally {
       await parser.destroy();

@@ -43,12 +43,20 @@ export default async function NotesDetailPage({ params }: { params: Promise<{ id
             From {notesDoc.source.type} · generated with {notesDoc.model}
           </p>
         </div>
-        <a
-          href={`/api/notes/${notesDoc.id}/export?format=markdown`}
-          className="shrink-0 rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900"
-        >
-          Download .md
-        </a>
+        <div className="flex shrink-0 gap-2">
+          <a
+            href={`/api/notes/${notesDoc.id}/export?format=markdown`}
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900"
+          >
+            Download .md
+          </a>
+          <a
+            href={`/api/notes/${notesDoc.id}/export?format=docx`}
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900"
+          >
+            Download .docx
+          </a>
+        </div>
       </div>
 
       <p className="text-gray-700 dark:text-gray-300">{notes.summary}</p>
