@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DeepgramClient } from "@deepgram/sdk";
 import type { NotesResult } from "@/lib/ai/schemas/notes.schema";
 
 const FLUSH_INTERVAL_MS = 45_000;
@@ -15,12 +14,12 @@ export function LiveMeetingSession() {
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<NotesResult | null>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [isWritingNotes, setIsWritingNotes] = useState(false);
 
   const notesDocumentIdRef = useRef<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const socketRef = useRef<any>(null);
+  const socketRef = useRef<WebSocket | null>(null);
   const pendingTranscriptRef = useRef("");
   const flushIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -69,37 +68,55 @@ export function LiveMeetingSession() {
       const tokenData = await tokenRes.json();
       if (!tokenRes.ok) throw new Error(tokenData.error ?? "Could not get a transcription token.");
 
-      const dg = new DeepgramClient({ accessToken: tokenData.accessToken });
-      const connection = await dg.listen.v1.connect({
+      // Connecting directly with the native browser WebSocket, bypassing
+      // @deepgram/sdk's client wrapper entirely — its internal auth
+      // resolution turned out to be too fragile/opaque to rely on here.
+      // Browsers can't set custom headers on a WebSocket handshake, so the
+      // key goes in the subprotocol list instead — Deepgram's documented
+      // method for browser clients, and verified working directly against
+      // their server beforehand.
+      const params = new URLSearchParams({
         model: "nova-3",
         language: "en",
         punctuate: "true",
         interim_results: "true",
         smart_format: "true",
       });
-      socketRef.current = connection;
+      const ws = new WebSocket(`wss://api.deepgram.com/v1/listen?${params}`, ["token", tokenData.accessToken]);
+      socketRef.current = ws;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      connection.on("message", (data: any) => {
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
         if (data.type === "Results" && data.is_final) {
           const text = data.channel?.alternatives?.[0]?.transcript ?? "";
           if (text.trim()) pendingTranscriptRef.current += (pendingTranscriptRef.current ? " " : "") + text.trim();
         }
-      });
-      connection.on("error", () => {
+      };
+      ws.onerror = () => {
         if (!cancelledRef.current) setError("Lost connection to the transcription service.");
-      });
+      };
 
-      connection.connect();
-      await connection.waitForOpen();
+      await new Promise<void>((resolve, reject) => {
+        ws.onopen = () => resolve();
+        ws.addEventListener("error", () => reject(new Error("Could not connect to the transcription service.")), {
+          once: true,
+        });
+      });
       if (cancelledRef.current) return;
 
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
         : "audio/webm";
-      const recorder = new MediaRecorder(displayStream, { mimeType });
+      // Recording must come from an audio-only stream — MediaRecorder
+      // rejects an audio-only mimeType when the source stream also has a
+      // video track (which we deliberately keep alive so Chrome's native
+      // "Stop sharing" indicator stays visible).
+      const audioOnlyStream = new MediaStream([displayStream.getAudioTracks()[0]]);
+      const recorder = new MediaRecorder(audioOnlyStream, { mimeType });
       recorder.ondataavailable = (e) => {
-        if (e.data.size > 0 && socketRef.current) socketRef.current.sendMedia(e.data);
+        if (e.data.size > 0 && socketRef.current?.readyState === WebSocket.OPEN) {
+          socketRef.current.send(e.data);
+        }
       };
       recorder.start(250);
       recorderRef.current = recorder;
@@ -129,6 +146,7 @@ export function LiveMeetingSession() {
     if (!chunk.trim() || !notesDocumentId) return;
     pendingTranscriptRef.current = "";
 
+    setIsWritingNotes(true);
     try {
       const res = await fetch(`/api/meetings/${notesDocumentId}/append-chunk`, {
         method: "POST",
@@ -139,6 +157,8 @@ export function LiveMeetingSession() {
       if (res.ok) setNotes(data.notes);
     } catch {
       // Non-fatal — this chunk is lost, but the live session keeps running for the next one.
+    } finally {
+      setIsWritingNotes(false);
     }
   }
 
@@ -170,6 +190,11 @@ export function LiveMeetingSession() {
   }
 
   useEffect(() => {
+    // Reset on every (re)run of this effect, not just on the initial ref
+    // value — React's development-mode double-invoke (mount, cleanup,
+    // mount again) otherwise leaves this permanently `true` after the
+    // "practice" cleanup, silently blocking begin() forever with no error.
+    cancelledRef.current = false;
     return () => {
       cancelledRef.current = true;
       recorderRef.current?.stop();
@@ -254,13 +279,25 @@ export function LiveMeetingSession() {
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
           <span className="font-medium text-red-900 dark:text-red-100">
-            {phase === "stopping" ? "Finishing up..." : "Recording — this tab's shared audio is being transcribed"}
+            {phase === "stopping"
+              ? "Finishing up..."
+              : "Recording, this tab's shared audio is being transcribed"}
           </span>
         </div>
         <div className="flex items-center gap-3">
           <span className="tabular-nums text-red-900 dark:text-red-100">
             {mins}:{secs}
           </span>
+          <div
+            className={`flex items-center gap-1.5 text-sm transition-colors ${
+              isWritingNotes ? "text-red-900 dark:text-red-100" : "text-red-700/70 dark:text-red-300/70"
+            }`}
+          >
+            <span className={`text-base ${isWritingNotes ? "animate-bounce" : ""}`} aria-hidden>
+              {isWritingNotes ? "✍️" : "👂"}
+            </span>
+            <span>{isWritingNotes ? "Taking notes..." : "Listening..."}</span>
+          </div>
           <button
             onClick={stopSession}
             disabled={phase === "stopping"}
@@ -275,7 +312,7 @@ export function LiveMeetingSession() {
 
       <div className="space-y-6 rounded-lg border border-gray-200 p-5 dark:border-gray-800">
         {!notes || notes.sections.length === 0 ? (
-          <p className="text-gray-500">Listening... notes will appear here as the meeting progresses.</p>
+          <p className="text-gray-500">Notes will appear here as the meeting progresses.</p>
         ) : (
           notes.sections.map((section, i) => (
             <div key={i}>

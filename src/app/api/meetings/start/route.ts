@@ -6,6 +6,15 @@ import { prisma } from "@/lib/db/prisma";
 const BodySchema = z.object({ consentConfirmed: z.literal(true) });
 
 export async function POST(req: Request) {
+  try {
+    return await handlePOST(req);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unexpected server error.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+async function handlePOST(req: Request) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

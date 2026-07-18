@@ -9,7 +9,16 @@ import { MAX_SOURCE_CHARS } from "@/lib/ai/models";
 
 const BodySchema = z.object({ transcriptChunk: z.string().min(1) });
 
-export async function POST(req: Request, { params }: { params: Promise<{ notesId: string }> }) {
+export async function POST(req: Request, ctx: { params: Promise<{ notesId: string }> }) {
+  try {
+    return await handlePOST(req, ctx);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unexpected server error.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+async function handlePOST(req: Request, { params }: { params: Promise<{ notesId: string }> }) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
