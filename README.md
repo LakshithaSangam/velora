@@ -40,8 +40,7 @@ The demonstration above follows the complete workflow, from pasting a YouTube li
 
 Generated notes are organized into clear sections with bullet points, highlighted keywords, and a confidence score indicating how complete and reliable the source material was. Lower confidence scores help identify incomplete transcripts or videos with poor captions.
 
-<!-- Save the confidence score screenshot as docs/screenshots/confidence-score.png, then uncomment: -->
-<!-- ![Notes page showing a confidence score next to the source and model](docs/screenshots/confidence-score.png) -->
+![Notes page showing a confidence score next to the source and model](docs/screenshots/confidence-score.png)
 
 ---
 
