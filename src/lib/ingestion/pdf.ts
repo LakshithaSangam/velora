@@ -1,4 +1,3 @@
-import { PDFParse } from "pdf-parse";
 import type { IngestResult, SourceAdapter, SourceAdapterInput } from "./types";
 import { saveUploadedFile } from "@/lib/storage/files";
 
@@ -22,13 +21,18 @@ export const pdfAdapter: SourceAdapter & {
 
     let rawText = "";
     let pageCount: number | undefined;
-    // Everything here, constructing the parser, parsing, and cleaning up,
-    // must stay inside one try/catch. pdf-parse can fail at any of those
-    // three steps (an image-only PDF, an unsupported structure, or even a
-    // module-loading error in some runtimes), and none of that should ever
-    // surface as a hard failure: Gemini's native PDF reading at generation
-    // time still handles it, rawText just stays empty for now.
+    // Everything here, loading pdf-parse, constructing the parser, parsing,
+    // and cleaning up, must stay inside one try/catch. A static top-level
+    // `import` would resolve before this function ever runs, so any
+    // module-loading failure there couldn't be caught at all; the dynamic
+    // import() below turns that into a rejected promise this try/catch can
+    // actually see. pdf-parse can fail at any of these steps (an image-only
+    // PDF, an unsupported structure, or a module-loading error in some
+    // runtimes), and none of that should surface as a hard failure: Gemini's
+    // native PDF reading at generation time still handles it, rawText just
+    // stays empty for now.
     try {
+      const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: input.fileBuffer });
       try {
         const parsed = await parser.getText({ pageJoiner: "\n\n" });
