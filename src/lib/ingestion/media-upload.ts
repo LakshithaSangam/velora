@@ -13,7 +13,7 @@ export const mediaUploadAdapter = {
     }
     if (!process.env.OPENAI_API_KEY) {
       throw new Error(
-        "Audio/video transcription isn't set up yet — add an OPENAI_API_KEY to use this feature.",
+        "Audio/video transcription isn't set up yet, add an OPENAI_API_KEY to use this feature.",
       );
     }
 

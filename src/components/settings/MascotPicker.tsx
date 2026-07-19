@@ -32,7 +32,7 @@ export function MascotPicker() {
           </option>
         ))}
       </select>
-      <p className="text-xs text-gray-500">Changes right away — no reload needed.</p>
+      <p className="text-xs text-gray-500">Changes right away, no reload needed.</p>
     </div>
   );
 }

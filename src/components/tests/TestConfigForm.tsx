@@ -81,8 +81,8 @@ export function TestConfigForm({
             onChange={(e) => setRepeatPreviousQuestions(e.target.value === "yes")}
             className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
           >
-            <option value="no">No — all new questions</option>
-            <option value="yes">Yes — mix in a few from before</option>
+            <option value="no">No, all new questions</option>
+            <option value="yes">Yes, mix in a few from before</option>
           </select>
         </div>
       )}

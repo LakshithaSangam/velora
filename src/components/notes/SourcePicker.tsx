@@ -216,7 +216,7 @@ export function SourcePicker({
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-transparent"
                 />
                 <p className="text-xs text-gray-500">
-                  YouTube links use the video&apos;s captions automatically — free, no AI cost until you
+                  YouTube links use the video&apos;s captions automatically, free, no AI cost until you
                   generate notes. For other platforms, paste a direct link to a .vtt/.srt caption file (or
                   use &quot;Paste transcript&quot; if you have one saved).
                 </p>
@@ -231,8 +231,8 @@ export function SourcePicker({
                   label="Choose an audio or video file from your computer"
                 />
                 <p className="text-xs text-gray-500">
-                  mp3, mp4, m4a, wav, ogg, webm, or flac — up to 25MB. Transcribed automatically via
-                  Whisper (needs an OPENAI_API_KEY — small optional per-minute cost, separate from notes
+                  mp3, mp4, m4a, wav, ogg, webm, or flac, up to 25MB. Transcribed automatically via
+                  Whisper (needs an OPENAI_API_KEY, small optional per-minute cost, separate from notes
                   generation).
                 </p>
               </div>
@@ -258,7 +258,7 @@ export function SourcePicker({
               label="Choose a Word or Excel file from your computer"
             />
             <p className="text-xs text-gray-500">
-              .docx (Word) or .xlsx (Excel) — up to 20MB. Text is extracted for free, no AI cost until you
+              .docx (Word) or .xlsx (Excel), up to 20MB. Text is extracted for free, no AI cost until you
               generate notes.
             </p>
           </div>
@@ -282,7 +282,7 @@ export function SourcePicker({
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-transparent"
             />
             <p className="text-xs text-gray-500">
-              Use this when you already have text somewhere else — a transcript you copied from a
+              Use this when you already have text somewhere else, a transcript you copied from a
               website, notes from a friend, captions you downloaded manually, etc. Just paste the raw
               text here instead of uploading a file or a link.
             </p>

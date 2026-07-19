@@ -17,7 +17,7 @@ export const webArticleAdapter: SourceAdapter = {
     }
     if (/drive\.google\.com|docs\.google\.com/.test(url.hostname)) {
       throw new Error(
-        "Google Drive/Docs links can't be read directly — they need you to be signed in and load " +
+        "Google Drive/Docs links can't be read directly, they need you to be signed in and load " +
           "JavaScript, which this app can't do. Instead, download the file and upload it using the " +
           "PDF, Word/Excel, or Audio/video tab, or use \"Paste transcript\" to paste the text directly.",
       );
@@ -52,7 +52,7 @@ export const webArticleAdapter: SourceAdapter = {
       )
     ) {
       throw new Error(
-        "This page doesn't seem to have readable article content — it may require JavaScript or " +
+        "This page doesn't seem to have readable article content, it may require JavaScript or " +
           "signing in to view. Try a different link, or use \"Paste transcript\" to paste the text directly.",
       );
     }
