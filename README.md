@@ -251,6 +251,7 @@ Configure the following variables:
 | `GEMINI_API_KEY` | Required for notes generation, tests, grading, and Ask Velora. |
 | `DEEPGRAM_API_KEY` | Required only for the Live Meeting Notes feature. |
 | `OPENAI_API_KEY` | Optional. Required only for audio and video transcription using Whisper. |
+| `BLOB_READ_WRITE_TOKEN` | Optional locally (uploads fall back to local disk). Required on Vercel or any serverless deploy, since the filesystem there doesn't persist between requests. |
 
 ---
 
@@ -324,9 +325,6 @@ Recording laws vary across jurisdictions. Users are responsible for informing me
 ## 🚀 Future Enhancements
 
 Velora is continuously evolving, with several improvements planned to enhance the learning experience and shape the future of the platform.
-
-- ☁️ **Cloud Storage Support**
-  Replace local file storage with cloud-based solutions such as Vercel Blob or Amazon S3 for improved scalability and deployment.
 
 - 📱 **Cross-Platform Experience**
   Expand support across different browsers and platforms while improving compatibility for Live Meeting Notes.
