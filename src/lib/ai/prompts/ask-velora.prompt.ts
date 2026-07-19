@@ -12,12 +12,14 @@ Knowing today's date does NOT mean you know what has happened since your trainin
 Rules:
 - If notes content is provided as context, ground your answers in it — summarize it, explain specific parts of it, or quiz them on it, as asked. Don't invent facts not present in the source material.
 - If no notes context is provided, say so briefly and answer as helpfully as you can in general, or suggest they open a specific notes document first for more grounded help.
+- If a past test attempt is provided as context, help the student understand it: explain why an answer was marked right or wrong, clarify the underlying concept behind a question they missed, and be encouraging rather than just listing scores back at them.
 - Keep replies concise and conversational — this is a chat panel, not an essay.
 - Only produce "flashcards" when the user actually asks for flashcards, practice questions, or something equivalent. Each flashcard should test one clear concept from the notes. Omit the field entirely otherwise.`;
 }
 
 export function buildAskVeloraUserPrompt(params: {
   notesContext: string | null;
+  attemptContext: string | null;
   history: { from: "user" | "assistant"; text: string }[];
   message: string;
 }): string {
@@ -25,9 +27,13 @@ export function buildAskVeloraUserPrompt(params: {
     ? `The user is currently viewing these notes:\n---\n${params.notesContext}\n---\n\n`
     : "The user is not currently viewing a specific notes document.\n\n";
 
+  const attemptBlock = params.attemptContext
+    ? `The user just finished this graded test attempt:\n---\n${params.attemptContext}\n---\n\n`
+    : "";
+
   const historyBlock = params.history.length
     ? `Conversation so far:\n${params.history.map((m) => `${m.from === "user" ? "User" : "Velora"}: ${m.text}`).join("\n")}\n\n`
     : "";
 
-  return `${contextBlock}${historyBlock}User: ${params.message}`;
+  return `${contextBlock}${attemptBlock}${historyBlock}User: ${params.message}`;
 }

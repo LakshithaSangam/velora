@@ -24,6 +24,7 @@ model User {
   notesDocs    NotesDocument[]
   tests        Test[]
   testAttempts TestAttempt[]
+  askVeloraMessages AskVeloraMessage[]
 }
 
 model Account {
@@ -128,7 +129,29 @@ model NotesDocument {
   user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   source       Source @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   testsAsBasis Test[] @relation("TestNotesSource")
+  askVeloraMessages AskVeloraMessage[]
 
+  @@index([userId])
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+}
+
+model AskVeloraMessage {
+  id              String   @id @default(cuid())
+  notesDocumentId String
+  userId          String
+  role            ChatRole
+  text            String   @db.Text
+  flashcardsJson  Json?
+  createdAt       DateTime @default(now())
+
+  notesDocument NotesDocument @relation(fields: [notesDocumentId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([notesDocumentId])
   @@index([userId])
 }
 

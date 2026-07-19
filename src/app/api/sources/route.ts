@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { ingestSource } from "@/lib/ingestion";
 import { MAX_SOURCE_CHARS } from "@/lib/ai/models";
+import { withTransientRetry } from "@/lib/db/retry";
 import type { SourceType } from "@prisma/client";
 
 const UrlBodySchema = z.object({
@@ -117,20 +118,23 @@ async function handlePOST(req: Request) {
 
   let source;
   try {
-    source = await prisma.source.create({
-      data: {
-        userId: session.user.id,
-        type,
-        originalUrl,
-        status: "INGESTING",
-      },
-    });
+    source = await withTransientRetry(() =>
+      prisma.source.create({
+        data: {
+          userId: session.user.id,
+          type,
+          originalUrl,
+          status: "INGESTING",
+        },
+      }),
+    );
   } catch (err) {
-    // Foreign key violation on userId means the session references a user
-    // that no longer exists in the database (e.g. after a DB reset/switch).
+    // A genuine foreign key violation on userId (surviving a retry) means
+    // the session references a user that no longer exists in the database
+    // (e.g. after a DB reset/switch).
     if (err && typeof err === "object" && "code" in err && err.code === "P2003") {
       return NextResponse.json(
-        { error: "Your session is out of date — please sign out and sign back in." },
+        { error: "Your session is out of date, please sign out and sign back in." },
         { status: 401 },
       );
     }

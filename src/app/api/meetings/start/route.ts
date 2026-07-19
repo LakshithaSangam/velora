@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
+import { withTransientRetry } from "@/lib/db/retry";
 
 const BodySchema = z.object({ consentConfirmed: z.literal(true) });
 
@@ -28,24 +29,26 @@ async function handlePOST(req: Request) {
   }
 
   const now = new Date();
-  const title = `Live meeting — ${now.toLocaleString()}`;
+  const title = `Live meeting (${now.toLocaleString("en-US")})`;
 
   let source;
   try {
-    source = await prisma.source.create({
-      data: {
-        userId: session.user.id,
-        type: "MEETING_RECORDING",
-        title,
-        status: "INGESTING",
-        consentConfirmedAt: now,
-        confirmedAt: now,
-      },
-    });
+    source = await withTransientRetry(() =>
+      prisma.source.create({
+        data: {
+          userId: session.user.id,
+          type: "MEETING_RECORDING",
+          title,
+          status: "INGESTING",
+          consentConfirmedAt: now,
+          confirmedAt: now,
+        },
+      }),
+    );
   } catch (err) {
     if (err && typeof err === "object" && "code" in err && err.code === "P2003") {
       return NextResponse.json(
-        { error: "Your session is out of date — please sign out and sign back in." },
+        { error: "Your session is out of date, please sign out and sign back in." },
         { status: 401 },
       );
     }

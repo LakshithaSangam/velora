@@ -5,6 +5,7 @@ import { buildAskVeloraSystemPrompt, buildAskVeloraUserPrompt } from "./prompts/
 
 export async function askVelora(params: {
   notesContext: string | null;
+  attemptContext: string | null;
   history: { from: "user" | "assistant"; text: string }[];
   message: string;
 }): Promise<AskVeloraResult> {

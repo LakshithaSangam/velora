@@ -10,6 +10,7 @@ const links = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/notes", label: "Notes", icon: "📝" },
   { href: "/tests", label: "Tests", icon: "🧪" },
+  { href: "/chats", label: "Chats", icon: "💬" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 

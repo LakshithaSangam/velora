@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useMascotErrorMood, useMascotLoadingMood } from "@/lib/mascot-bus";
-
-const SUGGESTIONS = ["Summarize this", "Generate flashcards", "Explain this simply"];
 
 type Flashcard = { front: string; back: string };
 type Message = { from: "assistant" | "user"; text: string; flashcards?: Flashcard[] };
@@ -39,13 +37,74 @@ export function AskVelora() {
   const notesMatch = pathname.match(/^\/notes\/([^/]+)$/);
   const notesId = notesMatch && notesMatch[1] !== "new" && notesMatch[1] !== "live" ? notesMatch[1] : undefined;
 
+  // A test page grounds Ask Velora in the same notes document the test was
+  // generated from (resolved server-side), so the conversation continues
+  // the same thread as the notes page. Results pages additionally pass the
+  // graded attempt so mistakes can be explained. The live test-taking
+  // screen (/tests/[id]/take) deliberately doesn't match either pattern,
+  // so Ask Velora can't be used to leak answers mid-test.
+  const resultsMatch = pathname.match(/^\/tests\/([^/]+)\/results\/([^/]+)$/);
+  const testMatch = pathname.match(/^\/tests\/([^/]+)$/);
+  const testId = resultsMatch ? resultsMatch[1] : testMatch && testMatch[1] !== "new" ? testMatch[1] : undefined;
+  const attemptId = resultsMatch ? resultsMatch[2] : undefined;
+
+  const suggestions = attemptId
+    ? ["Explain my mistakes", "Summarize this", "Generate flashcards"]
+    : ["Summarize this", "Generate flashcards", "Explain this simply"];
+
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([initialMessage(!!notesId)]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
+  // Whether this conversation is actually grounded and savable, confirmed
+  // by the server (a test might have no linked notes document at all).
+  const [groundedNotesDocumentId, setGroundedNotesDocumentId] = useState<string | null>(notesId ?? null);
   useMascotLoadingMood(loading);
   useMascotErrorMood(error);
+
+  // Reload the saved conversation for this notes document (or the test's
+  // linked notes document) whenever it changes, including on mount, so past
+  // chats survive a refresh or coming back later. There's nowhere to save a
+  // conversation with no notes document behind it, so that case stays
+  // session-only as before.
+  useEffect(() => {
+    setGroundedNotesDocumentId(notesId ?? null);
+    setMessages([initialMessage(!!notesId)]);
+    if (!notesId && !testId) return;
+    let cancelled = false;
+    const query = notesId ? `notesId=${notesId}` : `testId=${testId}`;
+    fetch(`/api/ask-velora/history?${query}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        setGroundedNotesDocumentId(data.notesDocumentId ?? null);
+        setMessages(data.messages?.length ? data.messages : [initialMessage(!!data.notesDocumentId)]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [notesId, testId]);
+
+  async function clearChat() {
+    if (!window.confirm("Clear this conversation? This can't be undone.")) return;
+    setClearing(true);
+    try {
+      if (notesId || testId) {
+        const query = notesId ? `notesId=${notesId}` : `testId=${testId}`;
+        const res = await fetch(`/api/ask-velora/history?${query}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("Could not clear the conversation.");
+      }
+      setMessages([initialMessage(!!groundedNotesDocumentId)]);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setClearing(false);
+    }
+  }
 
   async function sendMessage(text: string) {
     if (!text.trim() || loading) return;
@@ -58,7 +117,7 @@ export function AskVelora() {
       const res = await fetch("/api/ask-velora", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, notesId, history }),
+        body: JSON.stringify({ message: text, notesId, testId, attemptId, history }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Ask Velora couldn't answer that.");
@@ -88,17 +147,29 @@ export function AskVelora() {
         <div className="fixed right-6 bottom-24 z-40 flex h-[28rem] w-80 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-950">
           <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
             <span className="font-medium">✨ Ask Velora</span>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Close"
-              className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-            >
-              ✕
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={clearChat}
+                disabled={clearing || messages.length <= 1}
+                title="Clear conversation"
+                aria-label="Clear conversation"
+                className="text-gray-400 hover:text-gray-700 disabled:opacity-40 dark:hover:text-gray-200"
+              >
+                🗑️
+              </button>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+                className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
-          {!notesId && (
+          {!groundedNotesDocumentId && (
             <p className="border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
               Not viewing a specific notes document. Open one for grounded answers.
             </p>
@@ -133,7 +204,7 @@ export function AskVelora() {
           </div>
 
           <div className="flex flex-wrap gap-1.5 border-t border-gray-200 px-3 py-2 dark:border-gray-800">
-            {SUGGESTIONS.map((s) => (
+            {suggestions.map((s) => (
               <button
                 key={s}
                 type="button"
