@@ -41,6 +41,7 @@ export default async function NotesDetailPage({ params }: { params: Promise<{ id
           <h1 className="text-2xl font-semibold">{notes.title}</h1>
           <p className="text-sm text-gray-500">
             From {notesDoc.source.type} · generated with {notesDoc.model}
+            {typeof notes.confidenceScore === "number" && ` · ${Math.round(notes.confidenceScore)}% confidence`}
           </p>
         </div>
         <div className="flex shrink-0 gap-2">

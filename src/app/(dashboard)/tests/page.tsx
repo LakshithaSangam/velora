@@ -25,9 +25,15 @@ export default async function TestsListPage() {
   // topic, not a new project — so group retakes by notesDocumentId here and
   // show one row per topic, with individual generations tucked into an
   // expandable list rather than cluttering the main view.
+  //
+  // notesDocumentId is nulled out automatically if the source notes
+  // document was later deleted (it's an optional foreign key), which would
+  // otherwise silently break grouping for every test generated from it —
+  // fall back to matching by title so those still group sensibly instead
+  // of each becoming its own ungrouped row.
   const groups = new Map<string, typeof tests>();
   for (const t of tests) {
-    const key = t.notesDocumentId ?? t.id;
+    const key = t.notesDocumentId ?? `title:${t.title}`;
     const group = groups.get(key);
     if (group) group.push(t);
     else groups.set(key, [t]);
@@ -67,10 +73,16 @@ export default async function TestsListPage() {
                       {totalAttempts > 0 && ` · ${totalAttempts} attempt${totalAttempts === 1 ? "" : "s"}`}
                     </div>
                   </div>
-                  {group.length === 1 && (
+                  {group.length === 1 ? (
                     <DeleteItemButton
                       deleteUrl={`/api/tests/${latest.id}`}
                       confirmMessage={`Delete "${latest.title}"? This can't be undone.`}
+                    />
+                  ) : (
+                    <DeleteItemButton
+                      deleteUrl={group.map((t) => `/api/tests/${t.id}`)}
+                      confirmMessage={`Delete all ${group.length} versions of "${latest.title}" and their ${totalAttempts} attempt${totalAttempts === 1 ? "" : "s"}? This can't be undone.`}
+                      label="Delete all"
                     />
                   )}
                 </div>
@@ -85,7 +97,7 @@ export default async function TestsListPage() {
                         <li key={t.id} className="flex items-center justify-between gap-3">
                           <Link href={`/tests/${t.id}`} className="text-gray-600 hover:underline dark:text-gray-400">
                             {STYLE_LABEL[t.questionStyle] ?? t.questionStyle} · {t.requestedQuestionCount} questions ·{" "}
-                            {t.createdAt.toLocaleDateString()}
+                            {t.createdAt.toLocaleDateString("en-US")}
                           </Link>
                           <DeleteItemButton
                             deleteUrl={`/api/tests/${t.id}`}

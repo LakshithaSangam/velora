@@ -192,7 +192,7 @@ export default async function DashboardPage() {
           <StatCard label="Tests generated" value={testsCount} href="/tests" icon="🧪" />
           <StatCard
             label="Avg test score"
-            value={avgScorePct !== null ? `${avgScorePct}%` : "—"}
+            value={avgScorePct !== null ? `${avgScorePct}%` : "N/A"}
             href="/tests"
             icon="✅"
           />
@@ -205,7 +205,7 @@ export default async function DashboardPage() {
               currentStreak > 0
                 ? undefined
                 : longestStreak > 0
-                  ? `Best: ${longestStreak}-day streak — start a new one!`
+                  ? `Best: ${longestStreak} day streak, start a new one!`
                   : "Start your first streak today!"
             }
           />
@@ -236,7 +236,7 @@ export default async function DashboardPage() {
               🌱
             </span>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Nothing here yet — generate your first set of notes to get started.
+              Nothing here yet, generate your first set of notes to get started.
             </p>
           </div>
         ) : recentActivity.length === 0 ? (
@@ -270,7 +270,7 @@ export default async function DashboardPage() {
                     <div className="flex shrink-0 items-center gap-2 text-xs text-gray-500">
                       <span className={`h-2 w-2 rounded-full ${STATUS_DOT[item.status] ?? "bg-gray-400"}`} />
                       {item.status}
-                      <span className="hidden sm:inline">· {item.createdAt.toLocaleDateString()}</span>
+                      <span className="hidden sm:inline">· {item.createdAt.toLocaleDateString("en-US")}</span>
                     </div>
                   </Link>
                 </li>

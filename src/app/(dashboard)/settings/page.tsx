@@ -11,7 +11,7 @@ export default async function SettingsPage() {
       <div className="max-w-md space-y-2 text-sm">
         <div>
           <span className="text-gray-500">Name: </span>
-          {session?.user.name ?? "—"}
+          {session?.user.name ?? "Not set"}
         </div>
         <div>
           <span className="text-gray-500">Email: </span>

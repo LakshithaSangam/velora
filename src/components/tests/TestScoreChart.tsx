@@ -4,6 +4,7 @@ import { useState } from "react";
 
 export type PastAttempt = {
   id: string;
+  testId: string;
   score: number;
   maxScore: number;
   submittedAt: string;
@@ -170,7 +171,7 @@ export function TestScoreChart({ pastAttempts }: { pastAttempts: PastAttempt[] }
         <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs dark:border-gray-800 dark:bg-gray-900">
           <span className="font-medium">{points[hoverIndex].testTitle}</span> ·{" "}
           {points[hoverIndex].questionStyle} · {points[hoverIndex].requestedQuestionCount} questions ·{" "}
-          {new Date(points[hoverIndex].submittedAt).toLocaleDateString()} ·{" "}
+          {new Date(points[hoverIndex].submittedAt).toLocaleDateString("en-US")} ·{" "}
           <span className="font-semibold">
             {Math.round(points[hoverIndex].score * 10) / 10}/{points[hoverIndex].maxScore} ({points[hoverIndex].pct}%)
           </span>

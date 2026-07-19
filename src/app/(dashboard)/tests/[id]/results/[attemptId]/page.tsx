@@ -34,7 +34,7 @@ export default async function ResultsPage({
   return (
     <div className="max-w-2xl space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">{attempt.test.title} — Results</h1>
+        <h1 className="text-2xl font-semibold">{attempt.test.title}: Results</h1>
         <p className="text-lg font-medium">
           {attempt.score?.toFixed(1)} / {attempt.maxScore} ({scorePct}%)
         </p>

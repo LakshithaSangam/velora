@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TestConfigForm, type TestConfig } from "./TestConfigForm";
 import { TestScoreChart, type PastAttempt } from "./TestScoreChart";
+import { DeleteItemButton } from "@/components/DeleteItemButton";
 
 export type { PastAttempt };
 
@@ -13,7 +14,10 @@ export function TestStatsAndRetake({
   pastAttempts,
   readyToStartTest,
 }: {
-  notesDocumentId: string;
+  /** Null if the source notes document was since deleted — retaking needs
+   * its content to generate new questions, so that action is disabled in
+   * that case, but past stats/attempts still display fine. */
+  notesDocumentId: string | null;
   pastAttempts: PastAttempt[];
   readyToStartTest?: { id: string; title: string } | null;
 }) {
@@ -23,6 +27,7 @@ export function TestStatsAndRetake({
   const [error, setError] = useState<string | null>(null);
 
   async function handleRetake(config: TestConfig) {
+    if (!notesDocumentId) return;
     setError(null);
     setLoading(true);
     try {
@@ -78,10 +83,14 @@ export function TestStatsAndRetake({
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-gray-500">{new Date(a.submittedAt).toLocaleDateString()}</span>
+                  <span className="text-gray-500">{new Date(a.submittedAt).toLocaleDateString("en-US")}</span>
                   <span className="font-semibold tabular-nums">
                     {Math.round(a.score * 10) / 10}/{a.maxScore} ({pct}%)
                   </span>
+                  <DeleteItemButton
+                    deleteUrl={`/api/tests/${a.testId}/attempts/${a.id}`}
+                    confirmMessage={`Delete this attempt on "${a.testTitle}"? This can't be undone.`}
+                  />
                 </div>
               </li>
             );
@@ -89,7 +98,12 @@ export function TestStatsAndRetake({
         </ul>
       </details>
 
-      {retaking ? (
+      {!notesDocumentId ? (
+        <p className="text-sm text-gray-500">
+          Can&apos;t generate a new retake, the source notes for this topic were deleted. Your past attempts above
+          are still here.
+        </p>
+      ) : retaking ? (
         <TestConfigForm
           onSubmit={handleRetake}
           loading={loading}
