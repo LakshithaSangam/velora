@@ -22,22 +22,23 @@ export const pdfAdapter: SourceAdapter & {
 
     let rawText = "";
     let pageCount: number | undefined;
-    const parser = new PDFParse({ data: input.fileBuffer });
+    // Everything here, constructing the parser, parsing, and cleaning up,
+    // must stay inside one try/catch. pdf-parse can fail at any of those
+    // three steps (an image-only PDF, an unsupported structure, or even a
+    // module-loading error in some runtimes), and none of that should ever
+    // surface as a hard failure: Gemini's native PDF reading at generation
+    // time still handles it, rawText just stays empty for now.
     try {
-      const parsed = await parser.getText({ pageJoiner: "\n\n" });
-      rawText = parsed.text.trim();
-      pageCount = parsed.total;
+      const parser = new PDFParse({ data: input.fileBuffer });
+      try {
+        const parsed = await parser.getText({ pageJoiner: "\n\n" });
+        rawText = parsed.text.trim();
+        pageCount = parsed.total;
+      } finally {
+        await parser.destroy().catch(() => {});
+      }
     } catch {
-      // Image-only / unparsable PDF — Gemini's native reading at generation
-      // time will still handle this; rawText just stays empty for now.
-    }
-    // destroy() can itself throw after a failed parse (its internal state
-    // never fully initialized); that must not override the graceful
-    // degradation above and surface as a hard failure to the user.
-    try {
-      await parser.destroy();
-    } catch {
-      // Cleanup failure after an already-handled parse failure — ignore.
+      // See comment above — intentionally left empty.
     }
 
     const title = input.fileName?.replace(/\.pdf$/i, "") || "Untitled PDF";
