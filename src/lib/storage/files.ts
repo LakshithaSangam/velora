@@ -1,14 +1,15 @@
 import { randomUUID } from "crypto";
 import { mkdir, readFile, writeFile, unlink } from "fs/promises";
 import path from "path";
-import { put, del } from "@vercel/blob";
+import { put, del, get } from "@vercel/blob";
 
 // Local disk works fine for dev, but a serverless deploy's filesystem is
 // ephemeral per invocation, so uploads there go to Vercel Blob instead
-// whenever a token is configured. The fileKey doubles as the mode switch: a
-// Blob fileKey is the blob's own https:// URL, a local one is just a
-// filename, so read/delete can tell which backend wrote it without a
-// separate flag.
+// whenever a token is configured. The store is private (uploaded study
+// material shouldn't be guessable/public via URL), which means reads need
+// the SDK's authenticated get() rather than a plain fetch(). useBlob is
+// fixed for the lifetime of a deployment, so fileKey can just be the bare
+// pathname in both modes, no need to encode which backend wrote it.
 const UPLOAD_DIR = path.join(process.cwd(), ".uploads");
 const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 
@@ -17,8 +18,8 @@ export async function saveUploadedFile(buffer: Buffer, originalName: string): Pr
   const fileKey = `${randomUUID()}${safeExt}`;
 
   if (useBlob) {
-    const blob = await put(fileKey, buffer, { access: "public" });
-    return blob.url;
+    await put(fileKey, buffer, { access: "private" });
+    return fileKey;
   }
 
   await mkdir(UPLOAD_DIR, { recursive: true });
@@ -27,16 +28,19 @@ export async function saveUploadedFile(buffer: Buffer, originalName: string): Pr
 }
 
 export async function readUploadedFile(fileKey: string): Promise<Buffer> {
-  if (fileKey.startsWith("http")) {
-    const res = await fetch(fileKey);
-    return Buffer.from(await res.arrayBuffer());
+  if (useBlob) {
+    const result = await get(fileKey, { access: "private" });
+    if (!result || result.statusCode !== 200 || !result.stream) {
+      throw new Error("Uploaded file not found in storage.");
+    }
+    return Buffer.from(await new Response(result.stream).arrayBuffer());
   }
   const safeName = path.basename(fileKey);
   return readFile(path.join(UPLOAD_DIR, safeName));
 }
 
 export async function deleteUploadedFile(fileKey: string): Promise<void> {
-  if (fileKey.startsWith("http")) {
+  if (useBlob) {
     await del(fileKey).catch(() => {
       // Already gone or never existed — deleting is idempotent either way.
     });
