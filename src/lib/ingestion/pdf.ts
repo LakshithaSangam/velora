@@ -30,8 +30,14 @@ export const pdfAdapter: SourceAdapter & {
     } catch {
       // Image-only / unparsable PDF — Gemini's native reading at generation
       // time will still handle this; rawText just stays empty for now.
-    } finally {
+    }
+    // destroy() can itself throw after a failed parse (its internal state
+    // never fully initialized); that must not override the graceful
+    // degradation above and surface as a hard failure to the user.
+    try {
       await parser.destroy();
+    } catch {
+      // Cleanup failure after an already-handled parse failure — ignore.
     }
 
     const title = input.fileName?.replace(/\.pdf$/i, "") || "Untitled PDF";
