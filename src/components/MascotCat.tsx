@@ -85,6 +85,33 @@ const PET_SOUND: Record<MascotSpecies, string> = {
   owl: "hoot hoot hoot...",
 };
 
+// Real royalty-free audio clips for all 7 species. The first attempt at
+// koala/panda (a cartoon yawn, a farm-goat bleat) landed wrong once actually
+// heard, sounding like a person and an actual goat rather than either
+// animal, so those two were swapped: koala uses a soft cloth/bedsheet
+// rustle (fitting the "snuggle" text without pretending to be a real koala
+// vocalization, since koalas don't have a distinct one), and panda uses a
+// real recorded panda grunt.
+const PET_SOUND_FILE: Record<MascotSpecies, string> = {
+  cat: "/sounds/mascot/cat-pet.mp3",
+  dog: "/sounds/mascot/dog-pet.mp3",
+  hamster: "/sounds/mascot/hamster-pet.mp3",
+  owl: "/sounds/mascot/owl-pet.mp3",
+  rabbit: "/sounds/mascot/rabbit-pet.mp3",
+  koala: "/sounds/mascot/koala-pet.mp3",
+  panda: "/sounds/mascot/panda-pet.mp3",
+};
+const FEED_SOUND_FILE = "/sounds/mascot/feed.mp3";
+
+function playSound(src: string) {
+  const audio = new Audio(src);
+  audio.volume = 0.5;
+  audio.play().catch(() => {
+    // Ignored: browsers can reject playback in rare edge cases (e.g. no
+    // user-gesture context); the on-screen text reaction still shows either way.
+  });
+}
+
 const FEED_SOUND: Record<MascotSpecies, string> = {
   cat: "nom nom nom...",
   dog: "crunch crunch crunch...",
@@ -115,7 +142,7 @@ const MOOD_BADGE: Partial<Record<MascotMood, string>> = {
 const SUPPORTIVE_MESSAGES = [
   "You've got this!",
   "Take your time.",
-  "Breathe — you know this.",
+  "Breathe, you know this.",
   "One question at a time.",
   "Almost there!",
 ];
@@ -318,6 +345,8 @@ export function MascotCat() {
   function handlePet() {
     registerActivity();
     setPurring(true);
+    const soundFile = PET_SOUND_FILE[species];
+    if (soundFile) playSound(soundFile);
     if (purrTimeoutRef.current) clearTimeout(purrTimeoutRef.current);
     purrTimeoutRef.current = setTimeout(() => setPurring(false), 2200);
   }
@@ -325,6 +354,7 @@ export function MascotCat() {
   function handleFeed() {
     registerActivity();
     setFeeding(true);
+    playSound(FEED_SOUND_FILE);
     if (feedTimeoutRef.current) clearTimeout(feedTimeoutRef.current);
     feedTimeoutRef.current = setTimeout(() => setFeeding(false), 2200);
   }
@@ -372,7 +402,7 @@ export function MascotCat() {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         title="Drag to move, click to visit me!"
-        aria-label="Velora's mascot — drag to move, click to open"
+        aria-label="Velora's mascot, drag to move, click to open"
         style={{
           left: position.x,
           top: position.y,
